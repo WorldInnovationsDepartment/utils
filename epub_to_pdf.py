@@ -4,6 +4,8 @@ import shutil
 import subprocess
 import sys
 
+from _output import default_output
+
 
 def epub_to_pdf(epub_path, output_path=None):
     """
@@ -12,7 +14,7 @@ def epub_to_pdf(epub_path, output_path=None):
     Args:
         epub_path (str): Path to the input EPUB file.
         output_path (str, optional): Desired path for the PDF file.
-                                     Defaults to the same name as the EPUB with .pdf extension.
+                                     Defaults to ``output/epub_to_pdf/<stem>.pdf``.
 
     Returns:
         str: Path to the generated PDF file.
@@ -24,7 +26,6 @@ def epub_to_pdf(epub_path, output_path=None):
     if not os.path.exists(epub_path):
         raise FileNotFoundError(f'Input file not found: {epub_path}')
 
-    # Check if ebook-convert is available
     if not shutil.which('ebook-convert'):
         raise FileNotFoundError(
             'ebook-convert not found. Please install Calibre: '
@@ -32,7 +33,8 @@ def epub_to_pdf(epub_path, output_path=None):
         )
 
     if output_path is None:
-        output_path = os.path.splitext(epub_path)[0] + '.pdf'
+        stem = os.path.splitext(os.path.basename(epub_path))[0]
+        output_path = str(default_output(f'{stem}.pdf'))
 
     try:
         # Use ebook-convert from Calibre for better EPUB handling

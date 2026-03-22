@@ -4,6 +4,8 @@ import sys
 
 from PIL import Image
 
+from _output import default_output
+
 
 def webp_to_pdf(webp_path, output_path=None):
     """
@@ -12,7 +14,7 @@ def webp_to_pdf(webp_path, output_path=None):
     Args:
         webp_path (str): Path to the input WebP file.
         output_path (str, optional): Desired path for the PDF file.
-                                     Defaults to the same name as the WebP with .pdf extension.
+                                     Defaults to ``output/webp_to_pdf/<stem>.pdf``.
 
     Returns:
         str: Path to the generated PDF file.
@@ -25,7 +27,8 @@ def webp_to_pdf(webp_path, output_path=None):
         raise FileNotFoundError(f'Input file not found: {webp_path}')
 
     if output_path is None:
-        output_path = os.path.splitext(webp_path)[0] + '.pdf'
+        stem = os.path.splitext(os.path.basename(webp_path))[0]
+        output_path = str(default_output(f'{stem}.pdf'))
 
     try:
         img = Image.open(webp_path)

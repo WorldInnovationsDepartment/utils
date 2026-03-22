@@ -4,6 +4,8 @@ import sys
 
 import pypandoc
 
+from _output import default_output
+
 
 def pdf_to_epub(pdf_path, output_path=None):
     """
@@ -12,7 +14,7 @@ def pdf_to_epub(pdf_path, output_path=None):
     Args:
         pdf_path (str): Path to the input PDF file.
         output_path (str, optional): Desired path for the EPUB file.
-                                     Defaults to the same name as the PDF with .epub extension.
+                                     Defaults to ``output/pdf_to_epub/<stem>.epub``.
 
     Returns:
         str: Path to the generated EPUB file.
@@ -25,7 +27,8 @@ def pdf_to_epub(pdf_path, output_path=None):
         raise FileNotFoundError(f'Input file not found: {pdf_path}')
 
     if output_path is None:
-        output_path = os.path.splitext(pdf_path)[0] + '.epub'
+        stem = os.path.splitext(os.path.basename(pdf_path))[0]
+        output_path = str(default_output(f'{stem}.epub'))
 
     try:
         pypandoc.convert_file(
