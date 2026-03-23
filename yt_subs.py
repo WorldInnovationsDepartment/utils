@@ -15,7 +15,37 @@ def clean_url(url):
     return url
 
 
-def download_subtitles(url, lang='en', output_path=None, sub_format='srt', auto=True):
+def minify_srt(text):
+    """Strip SRT sequence numbers, timestamps, and blank lines — return plain text."""
+    lines = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if re.match(r'^\d+$', line):
+            continue
+        if re.match(r'\d{2}:\d{2}:\d{2}', line):
+            continue
+        lines.append(line)
+    return '\n'.join(lines)
+
+
+def minify_vtt(text):
+    """Strip VTT header, timestamps, and blank lines — return plain text."""
+    lines = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith('WEBVTT') or line.startswith('Kind:') or line.startswith('Language:'):
+            continue
+        if re.match(r'\d{2}:\d{2}', line):
+            continue
+        lines.append(line)
+    return '\n'.join(lines)
+
+
+def download_subtitles(url, lang='en', output_path=None, sub_format='srt', auto=True, mode='minify'):
     """
     Download subtitles from a YouTube video.
 
@@ -29,6 +59,8 @@ def download_subtitles(url, lang='en', output_path=None, sub_format='srt', auto=
                                       '<video_title>.<lang>.<format>' in the current directory.
         sub_format (str): Subtitle format — 'srt', 'vtt', or 'ass' (default: 'srt').
         auto (bool): Whether to fall back to auto-generated subtitles (default: True).
+        mode (str): 'minify' strips timestamps leaving plain text (default),
+                    'timestamps' keeps original subtitle format.
 
     Returns:
         str: Path to the downloaded subtitle file.
@@ -105,11 +137,27 @@ def download_subtitles(url, lang='en', output_path=None, sub_format='srt', auto=
             raise RuntimeError(f'Failed to download subtitles: {e}') from e
 
     expected = f'{outtmpl}.{chosen_lang}.{sub_format}'
-    if os.path.exists(expected):
-        print(f'Successfully downloaded subtitles: {expected}')
-        return expected
+    if not os.path.exists(expected):
+        raise RuntimeError(f'Subtitle file not found at expected path: {expected}')
 
-    raise RuntimeError(f'Subtitle file not found at expected path: {expected}')
+    if mode == 'minify':
+        with open(expected, 'r', encoding='utf-8') as f:
+            text = f.read()
+
+        minifiers = {'srt': minify_srt, 'vtt': minify_vtt}
+        minify_fn = minifiers.get(sub_format)
+        if minify_fn:
+            text = minify_fn(text)
+
+        txt_path = re.sub(r'\.[^.]+$', '.txt', expected)
+        with open(txt_path, 'w', encoding='utf-8') as f:
+            f.write(text)
+        os.remove(expected)
+        print(f'Successfully downloaded subtitles (minified): {txt_path}')
+        return txt_path
+
+    print(f'Successfully downloaded subtitles: {expected}')
+    return expected
 
 
 def main():
@@ -148,6 +196,13 @@ def main():
     )
 
     parser.add_argument(
+        '-m', '--mode',
+        help='Output mode: minify (plain text, no timestamps — default) or timestamps (original format)',
+        choices=['minify', 'timestamps'],
+        default='minify'
+    )
+
+    parser.add_argument(
         '--auto',
         help='Fall back to auto-generated subtitles (default)',
         action='store_true',
@@ -164,7 +219,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        download_subtitles(args.url, args.lang, args.output, args.format, args.auto)
+        download_subtitles(args.url, args.lang, args.output, args.format, args.auto, args.mode)
     except RuntimeError as e:
         print(f'Error: {e}', file=sys.stderr)
         sys.exit(1)
